@@ -96,19 +96,20 @@ public class MongodbSinkTask extends SinkTask {
 
             for (int j = 0; j < bulkSize && i < records.size(); j++, i++) {
                 SinkRecord record = records.get(i);
-                Map<String, Object> jsonMap = SchemaUtils.toJsonMap((Struct) record.value());
+                Map<String, Object> jsonMap = (Map<String, Object>)record.value();
                 String topic = record.topic();
 
                 if (bulks.get(topic) == null) {
                     bulks.put(topic, new ArrayList<WriteModel<Document>>());
                 }
 
+                Object id = jsonMap.containsKey("aid") ? jsonMap.get("aid"):record.kafkaOffset();
                 Document newDocument = new Document(jsonMap)
-                        .append("_id", record.kafkaOffset());
+                        .append("_id", id);
 
                 log.trace("Adding to bulk: {}", newDocument.toString());
                 bulks.get(topic).add(new UpdateOneModel<Document>(
-                        Filters.eq("_id", record.kafkaOffset()),
+                        Filters.eq("_id", id),
                         new Document("$set", newDocument),
                         new UpdateOptions().upsert(true)));
             }
